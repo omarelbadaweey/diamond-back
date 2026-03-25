@@ -49,12 +49,18 @@ setImmediate(async () => {
             title: "حجز جديد! 🏥",
             body: `المريض ${fullName} حجز مع ${doctorName}`
         });
-        const allSubs = await Subscription.find();
-        allSubs.map(sub => {
-            webpush.sendNotification(sub, payload).catch(err => console.error("خطأ إرسال:", err.message));
+        const allSubs = await Subscription.find().lean();
+        allSubs.forEach(sub => {
+            webpush.sendNotification(sub, payload).catch(async err => {
+                console.error("خطأ إرسال الإشعار:", err.statusCode, err.message);
+                if (err.statusCode === 410 || err.statusCode === 404) {
+                    await Subscription.deleteOne({ endpoint: sub.endpoint });
+                    console.log("تم مسح الاشتراك الغير فعال");
+                }
+            });
         });
     } catch (e) {
-        console.error("فشل جلب الاشتراكات:", e);
+        console.error("فشل إرسال الإشعارات للخلفية:", e);
     }
 });
 
