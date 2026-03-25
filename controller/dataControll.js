@@ -36,33 +36,34 @@ const dataController = {
             const savedData = await newData.save();
             // console.log("البيانات بعد ما اتحفظت في المونجو:", savedData);
 
-            res.status(201).json(savedData);
-
-
-            // ... بعد ما الحجز يتسيف بنجاح (savedData)
-
-            
-// شغل الإشعارات في "الخلفية" عشان ميعطلش الحفظ
-setImmediate(async () => {
-    try {
-        const payload = JSON.stringify({
-            title: "حجز جديد! 🏥",
-            body: `المريض ${fullName} حجز مع ${doctorName}`
-        });
-        const allSubs = await Subscription.find().lean();
-        allSubs.forEach(sub => {
-            webpush.sendNotification(sub, payload).catch(async err => {
-                console.error("خطأ إرسال الإشعار:", err.statusCode, err.message);
-                if (err.statusCode === 410 || err.statusCode === 404) {
-                    await Subscription.deleteOne({ endpoint: sub.endpoint });
-                    console.log("تم مسح الاشتراك الغير فعال");
+            // Send push notifications before responding so that Vercel Serverless doesn't kill the background process
+            try {
+                const payload = JSON.stringify({
+                    title: "حجز جديد! 🏥",
+                    body: `المريض ${fullName} حجز مع ${doctorName}`
+                });
+                
+                const allSubs = await Subscription.find().lean();
+                if (allSubs.length > 0) {
+                    const notificationPromises = allSubs.map(sub => 
+                        webpush.sendNotification(sub, payload).catch(async err => {
+                            console.error("خطأ إرسال الإشعار:", err.statusCode, err.message);
+                            if (err.statusCode === 410 || err.statusCode === 404) {
+                                await Subscription.deleteOne({ endpoint: sub.endpoint });
+                                console.log("تم مسح الاشتراك الغير فعال");
+                            }
+                        })
+                    );
+                    
+                    // Wait for all push tasks to complete
+                    await Promise.allSettled(notificationPromises);
                 }
-            });
-        });
-    } catch (e) {
-        console.error("فشل إرسال الإشعارات للخلفية:", e);
-    }
-});
+            } catch (e) {
+                console.error("فشل إرسال الإشعارات:", e);
+            }
+
+            // Now safely send the response
+            res.status(201).json(savedData);
 
 
         } catch (error) {
