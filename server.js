@@ -9,7 +9,7 @@ app.use(cors());
 app.use(express.json());
 app.use( '/api',router)
 const PORT = process.env.PORT || 5000;
-
+mongoose.set('bufferCommands', false);
 mongoose.connect(process.env.DB_CONNECTION_URL)
 .then(() => console.log('Connected to MongoDB'))
 .catch((err) => console.error('Error connecting to MongoDB:', err));
