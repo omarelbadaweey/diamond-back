@@ -83,9 +83,8 @@ const dataController = {
         // 1. استلام الحقل الجديد branch
         const { fullName, phoneNumber, day, time, doctorName, select, branch } = req.body;
 
-        // 2. التحقق من التكرار (دلوقتي ضفنا الفرع في البحث)
-        // ملحوظة: لو doctorName مش مبعوت، الـ query هتشتغل عادي بالحقول التانية
-        const existingBooking = await Data.findOne({ day, time, doctorName, branch });
+        // 2. التحقق من التكرار (دلوقتي بنشيك على الموعد والفرع بس)
+        const existingBooking = await Data.findOne({ day, time, branch });
         if (existingBooking) {
             return res.status(400).json({ message: "هذا الموعد محجوز مسبقاً في هذا الفرع" });
         }
